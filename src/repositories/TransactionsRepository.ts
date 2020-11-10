@@ -6,6 +6,12 @@ interface Balance {
   total: number;
 }
 
+interface CreateTransactionDTO {
+  title: string;
+  value: number;
+  type: 'income' | 'outcome';
+}
+
 class TransactionsRepository {
   private transactions: Transaction[];
 
@@ -18,25 +24,27 @@ class TransactionsRepository {
   }
 
   public getBalance(): Balance {
-    const reducer = (accumulator: number, currentValue: number) =>
-      accumulator + currentValue;
+    const { income, outcome } = this.transactions.reduce(
+      (accumulator: Balance, transaction: Transaction) => {
+        switch (transaction.type) {
+          case 'income':
+            accumulator.income += transaction.value;
+            break;
+          case 'outcome':
+            accumulator.outcome += transaction.value;
+            break;
+          default:
+            break;
+        }
 
-    const income =
-      this.transactions.length === 0
-        ? 0
-        : this.transactions
-          .map(transaction =>
-            transaction.type === 'income' ? transaction.value : 0,
-          )
-          .reduce(reducer);
-
-    const outcome = this.transactions.length === 0
-      ? 0
-      : this.transactions
-        .map(transaction =>
-          transaction.type === 'outcome' ? transaction.value : 0,
-        )
-        .reduce(reducer);
+        return accumulator;
+      },
+      {
+        income: 0,
+        outcome: 0,
+        total: 0,
+      },
+    );
 
     const total = income - outcome;
 
@@ -47,10 +55,12 @@ class TransactionsRepository {
     };
   }
 
-  public create(transaction: Transaction): Transaction {
-    const balance = this.getBalance();
-    if (transaction.type === 'outcome' && transaction.value > balance.total)
-      throw Error('Transaction not allowed');
+  public create({ title, value, type }: CreateTransactionDTO): Transaction {
+    const transaction = new Transaction({
+      title,
+      value,
+      type,
+    });
 
     this.transactions.push(transaction);
 
